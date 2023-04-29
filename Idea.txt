@@ -1,0 +1,8 @@
+Sort of a delivery RTS, you have competing companies, they company with the most money at the end of the day wins.
+
+3 Types of Units: 
+
+1. Delivery unit - The fastest unit, cheap to produce, fast, deliver only one package at a time.
+2. Combat unit - Can attack other carriers. 
+3. Hoarder unit - Slow unit but can deliver multiple packages at a time.
+

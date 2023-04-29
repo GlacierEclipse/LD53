@@ -1,3 +1,5 @@
+package scenes;
+
 import haxepunk.Scene;
 
 class MainScene extends Scene

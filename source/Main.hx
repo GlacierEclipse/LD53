@@ -1,17 +1,24 @@
+import haxepunk.debug.Console;
+import haxepunk.Graphic;
 import haxepunk.Engine;
 import haxepunk.HXP;
+import scenes.GameScene;
 
 class Main extends Engine
 {
 
 	static function main()
 	{
-		new Main();
+		new Main(320, 240, 60, false);
+
+
+		Graphic.smoothDefault = false;
+		Console.enable();
 	}
 
 	override public function init()
 	{
-		HXP.scene = new MainScene();
+		HXP.scene = new GameScene();
 	}
 }
 /*
