@@ -8,6 +8,7 @@ enum CommandType
     NONE;
     IDLE;
     GOTO;
+    TAKEDELIVERY;
     DELIVER;
     ATTACK;
     DEFEND;

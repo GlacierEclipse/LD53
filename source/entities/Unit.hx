@@ -1,5 +1,10 @@
 package entities;
 
+import haxepunk.utils.Log;
+import haxepunk.math.Vector2;
+import haxepunk.utils.Draw;
+import haxepunk.Camera;
+import haxepunk.math.Random;
 import haxepunk.math.MathUtil;
 import map.LevelManager;
 import haxepunk.ai.path.PathNode;
@@ -23,6 +28,8 @@ class Unit extends GameEntity
     public var selected:Bool;
 
     public var pathArray:Array<PathNode>;
+
+    public var randLastPos:Vector2;
 
     public function new(x:Float, y:Float, asset:String) 
     {
@@ -53,6 +60,8 @@ class Unit extends GameEntity
         type = "unit";
 
         pathArray = new Array<PathNode>();
+
+        randLastPos = new Vector2();
     }
 
     override function update() 
@@ -114,6 +123,12 @@ class Unit extends GameEntity
         currentCommand.targetEntity = interactWithEntity;
     }
 
+    public function dispatchIdleCommand()
+    {
+        currentCommand.commandType = IDLE;
+        currentCommand.targetEntity = null;
+    }
+
     public function dispatchGotoCommand(posX:Float, posY:Float)
     {
         currentCommand.commandType = CommandType.GOTO;
@@ -123,15 +138,69 @@ class Unit extends GameEntity
 
         // A* pathfind here.
         // Create the path array for the unit to follow.
-        pathArray = LevelManager.nodeGraph.search(MathUtil.floor(x / 16), MathUtil.floor(y / 16), 
-                                                  MathUtil.floor(posX / 16), MathUtil.floor(posY / 16));
+        createPathToDestination(posX, posY);
+
+        // convert to world pos
+        //for (path in pathArray)
+        //{
+        //    path.x *= 16.0;
+        //    path.y *= 16.0;
+        //}
+
+        // rand the last pos
+        randLastPos.x = -20.0 + Random.randFloat(40);
+        randLastPos.y = -20.0 + Random.randFloat(40);
+    }
+
+    public function createPathToDestination(destX:Float, destY:Float) 
+    {
+        if(pathArray != null)
+            pathArray.splice(0, pathArray.length);
+
+        var startX:Int = MathUtil.floor(x / 16);
+        var startY:Int = MathUtil.floor(y / 16);
+        var destX:Int = MathUtil.floor(destX / 16);
+        var destY:Int = MathUtil.floor(destY / 16);
+        pathArray = LevelManager.nodeGraph.search(startX, startY, 
+                                                  destX, destY);
         
         if(pathArray == null)
         {
             // why the fuck
+            Log.debug("Couldn't A* some shit startX:" + startX + 
+                          ", startY: " + startY  + ", destX: " + destX +
+                          ", destY: " + destY);
+            return;
         }
         else
             pathArray.shift();
+    }
+
+    public function dispatchTakeDeliveryCommand(interactWithEntity:Entity)
+    {
+
+        cast(interactWithEntity, Package).assigned();
+
+        currentCommand.commandType = CommandType.TAKEDELIVERY;        
+
+        // A* To the package.
+        createPathToDestination(interactWithEntity.x, interactWithEntity.y);
+
+    }
+
+    public function dispatchDeliverCommand(interactWithEntity:Entity)
+    {
+
+        cast(interactWithEntity, Package).pickUp(this);
+
+        currentCommand.commandType = CommandType.DELIVER;
+
+        var packageToDeliver:Package = cast interactWithEntity;
+        
+        // A* To the building.
+        createPathToDestination(packageToDeliver.destinationEntity.x + 16, packageToDeliver.destinationEntity.y);
+
+
     }
 
     public function dispatchAttackCommand(interactWithEntity:Entity)
@@ -163,9 +232,13 @@ class Unit extends GameEntity
                 {
                     handleGoto(currentCommand);
                 }
+                case TAKEDELIVERY:
+                {
+                    handleTakeDelivery(currentCommand);
+                }
                 case DELIVER:
                 {
-
+                    handleDeliver(currentCommand);
                 }
                 case ATTACK:
                 {
@@ -183,6 +256,67 @@ class Unit extends GameEntity
     {
 
     }
+
+    public function handleTakeDelivery(command:Command)
+    {
+        // Once package is acquired we need to deliver it.
+        if(pathArray == null || pathArray.length == 0)
+        {
+            velocity.setToZero();
+            dispatchDeliverCommand(command.targetEntity);
+            return;
+        }
+            
+        var targetNode:PathNode = pathArray[0];
+    
+        var targetX:Float = targetNode.x * 16;
+        var targetY:Float = targetNode.y * 16;
+        if(pathArray.length == 1)
+        {
+            targetX += randLastPos.x;
+            targetY += randLastPos.y;
+        }
+        velocity.setTo(targetX - x, targetY - y);
+        velocity.normalize();
+        velocity.scale(150);
+    
+        if(Math.abs(targetX - x) < 1.0 && Math.abs(targetY - y) < 1.0)
+        {
+            pathArray.shift();
+        }
+
+    }
+
+    public function handleDeliver(command:Command)
+    {
+        // Once package is acquired we need to deliver it.
+        if(pathArray == null || pathArray.length == 0)
+        {
+            cast(command.targetEntity, Package).delivered();
+            velocity.setToZero();
+            dispatchIdleCommand();
+            return;
+        }
+            
+        var targetNode:PathNode = pathArray[0];
+    
+        var targetX:Float = targetNode.x * 16;
+        var targetY:Float = targetNode.y * 16;
+        if(pathArray.length == 1)
+        {
+            targetX += randLastPos.x;
+            targetY += randLastPos.y;
+        }
+        velocity.setTo(targetX - x, targetY - y);
+        velocity.normalize();
+        velocity.scale(150);
+    
+        if(Math.abs(targetX - x) < 1.0 && Math.abs(targetY - y) < 1.0)
+        {
+            pathArray.shift();
+        }
+
+    }
     
     public function handleGoto(command:Command)
     {
@@ -195,11 +329,18 @@ class Unit extends GameEntity
             
         var targetNode:PathNode = pathArray[0];
 
-        velocity.setTo(targetNode.x * 16 - x, targetNode.y * 16 - y);
+        var targetX:Float = targetNode.x * 16;
+        var targetY:Float = targetNode.y * 16;
+        if(pathArray.length == 1)
+        {
+            targetX += randLastPos.x;
+            targetY += randLastPos.y;
+        }
+        velocity.setTo(targetX - x, targetY - y);
         velocity.normalize();
         velocity.scale(150);
 
-        if(Math.abs(targetNode.x * 16 - x) < 1.0 && Math.abs(targetNode.y * 16 - y) < 1.0)
+        if(Math.abs(targetX - x) < 1.0 && Math.abs(targetY - y) < 1.0)
         {
             pathArray.shift();
         }
@@ -214,5 +355,16 @@ class Unit extends GameEntity
     public function handleDefend(command:Command)
     {
 
+    }
+
+    override function render(camera:Camera) 
+    {
+        super.render(camera);
+
+        if(pathArray != null)
+        for (path in pathArray)
+        {
+            Draw.rect(path.x * 16, path.y * 16, 16, 16);
+        }
     }
 }

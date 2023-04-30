@@ -25,6 +25,12 @@ class DeliveryUnit extends Unit
             {
                 // Do nothing?? 
             }
+
+            if(Std.is(interactWithEntity, Package))
+            {
+                // Dispatch start delivery.
+                dispatchTakeDeliveryCommand(interactWithEntity);
+            }
         }
         
     }
