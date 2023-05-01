@@ -1,8 +1,11 @@
+import haxepunk.input.Key;
+import haxepunk.input.Input;
 import haxepunk.debug.Console;
 import haxepunk.Graphic;
 import haxepunk.Engine;
 import haxepunk.HXP;
 import scenes.GameScene;
+import scenes.MainMenuScene;
 
 class Main extends Engine
 {
@@ -13,12 +16,18 @@ class Main extends Engine
 
 
 		Graphic.smoothDefault = false;
-		Console.enable();
+		//Console.enable();
 	}
 
 	override public function init()
 	{
-		HXP.scene = new GameScene();
+		Input.define("enter", [Key.ENTER]);
+		Input.define("moveLeft", [Key.A, Key.LEFT]);
+		Input.define("moveRight", [Key.D, Key.RIGHT]);
+		Input.define("moveUp", [Key.W, Key.UP]);
+		Input.define("moveDown", [Key.S, Key.DOWN]);
+		Input.define("pauseSimulation", [Key.SPACE]);
+		HXP.scene = new MainMenuScene();
 	}
 }
 /*

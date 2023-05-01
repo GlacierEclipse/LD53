@@ -1,5 +1,8 @@
 package entities;
 
+import haxepunk.input.Input;
+import map.LevelManager;
+import haxepunk.math.Vector2;
 import haxepunk.math.Random;
 import haxepunk.Entity;
 import haxepunk.HXP;
@@ -15,6 +18,8 @@ class Player extends UnitControllerEntity
     public var selectedUnits:Array<Unit>;
     public var selectionRect:Rectangle;
     public var clampedSelectionRect:Rectangle;
+    public var packages:Array<Package>;
+    public var cameraPos:Vector2;
 
     public function new() 
     {
@@ -24,6 +29,7 @@ class Player extends UnitControllerEntity
 
         selectionRect = new Rectangle(-1, 0, 0, 0);
         clampedSelectionRect = new Rectangle(-1);
+        cameraPos = new Vector2();
 
         //visible = false;
     }
@@ -40,40 +46,107 @@ class Player extends UnitControllerEntity
         var mouseDown:Bool = Mouse.mouseDown;
         var middleMousePressed:Bool = Mouse.middleMousePressed;
 
-        handleHoverUnits();
+        //handleHoverUnits();
+
+
+        handleCamera();
 
         // Multiple selection
-        if(mouseDown)
+        //if(mouseDown)
+        //{
+        //    if(selectionRect.x < 0)
+        //    {
+        //        selectionRect.x = Mouse.mouseX;
+        //        selectionRect.y = Mouse.mouseY;
+        //    }
+//
+//
+        //    selectionRect.width = Mouse.mouseX - selectionRect.x;
+        //    selectionRect.height = Mouse.mouseY - selectionRect.y;
+        //    
+        //    clampedSelectionRect.setTo(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
+        //    clampSelectionRect(clampedSelectionRect);
+        //}
+//
+        //if(Mouse.mouseReleased)
+        //{
+//
+        //    // Select all the units in the selection region.
+        //    handleMultipleSelectUnit();
+//
+        //    // Reset the selection rect.
+        //    selectionRect.x = -1;
+        //    clampedSelectionRect.x = -1;
+        //}
+//
+        //if(middleMousePressed && selectedUnits.length > 0)
+        //{
+        //    handleDispatchCommand();
+        //}
+
+
+        // Find a random package to take.
+        packages = new Array<Package>();
+        HXP.scene.getType("package", packages);
+    
+        // Sort packages by price.
+    
+        packages.sort(function(packageA:Package, packageB:Package) :Int {
+            if(packageA.cost * packageA.numOfPackages > packageB.cost * packageB.numOfPackages)
+                return 1;
+            else if (packageA.cost * packageA.numOfPackages < packageB.cost * packageB.numOfPackages)
+                return -1;
+            return 0;
+        });
+    
+        // Man this is gonna be fun..
+    
+        // Then delivery
+        for(deliveryUnit in deliveryUnits)
         {
-            if(selectionRect.x < 0)
-            {
-                selectionRect.x = Mouse.mouseX;
-                selectionRect.y = Mouse.mouseY;
-            }
+            handleAIForDeliveryUnit(cast deliveryUnit);
+        }
+    
+        // Then combat
+        for(combatUnit in combatUnits)
+        {
+            handleAIForCombatUnit(cast combatUnit);
+        }
+    }
 
-
-            selectionRect.width = Mouse.mouseX - selectionRect.x;
-            selectionRect.height = Mouse.mouseY - selectionRect.y;
-            
-            clampedSelectionRect.setTo(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
-            clampSelectionRect(clampedSelectionRect);
+    public function handleCamera() 
+    {
+        var cameraSpeed:Float = 2;
+        if(Input.check("moveLeft"))
+        {
+            cameraPos.x -= cameraSpeed;
         }
 
-        if(Mouse.mouseReleased)
+        if(Input.check("moveRight"))
         {
-
-            // Select all the units in the selection region.
-            handleMultipleSelectUnit();
-
-            // Reset the selection rect.
-            selectionRect.x = -1;
-            clampedSelectionRect.x = -1;
+            cameraPos.x += cameraSpeed;
         }
 
-        if(middleMousePressed && selectedUnits.length > 0)
+        if(Input.check("moveDown"))
         {
-            handleDispatchCommand();
+            cameraPos.y += cameraSpeed;
         }
+
+        if(Input.check("moveUp"))
+        {
+            cameraPos.y -= cameraSpeed;
+        }
+
+        cameraPos.x = MathUtil.clamp(cameraPos.x, 0, LevelManager.mapWidth - 320);
+        cameraPos.y = MathUtil.clamp(cameraPos.y, 0, LevelManager.mapHeight - 240);
+
+        HXP.camera.x = MathUtil.lerp(HXP.camera.x, cameraPos.x, 0.08);
+        HXP.camera.y = MathUtil.lerp(HXP.camera.y, cameraPos.y, 0.08);
+
+        //HXP.camera.x = MathUtil.clamp(HXP.camera.x, 0, LevelManager.mapWidth - 320);
+        //HXP.camera.y = MathUtil.clamp(HXP.camera.y, 0, LevelManager.mapHeight - 240);
+
+
     }
 
     public function handleDispatchCommand()
@@ -84,6 +157,21 @@ class Player extends UnitControllerEntity
         // Find what entities the mouse collides with here.
         var collidedEntity:Entity = null;
         collidedEntity = HXP.scene.collidePoint("interactable", Mouse.mouseX, Mouse.mouseY);
+
+        if(collidedEntity == null)
+            collidedEntity = HXP.scene.collidePoint("unit", Mouse.mouseX, Mouse.mouseY);
+
+        if(collidedEntity == null)
+            collidedEntity = HXP.scene.collidePoint("deliveryUnit", Mouse.mouseX, Mouse.mouseY);
+
+        if(collidedEntity == null)
+            collidedEntity = HXP.scene.collidePoint("combatUnit", Mouse.mouseX, Mouse.mouseY);
+
+        if(collidedEntity == null)
+            collidedEntity = HXP.scene.collidePoint("building", Mouse.mouseX, Mouse.mouseY);
+
+        if(collidedEntity == null)
+            collidedEntity = HXP.scene.collidePoint("package", Mouse.mouseX, Mouse.mouseY);
 
         for (selectedUnit in selectedUnits)
         {

@@ -33,5 +33,8 @@ class Building extends GameEntity
             addGraphic(spriteMapBuildingPart);
             spriteMapBuildingPart.y = -16 * (i + 1);
         }
+
+        setHitbox(16, 16);
+        type = "building";
     }
 }
